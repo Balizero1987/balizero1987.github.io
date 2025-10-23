@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#10b981">
+    <title>ZANTARA Chat</title>
+    
+    <!-- PWA Support -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+    
+    <!-- API Layer -->
+    <script src="js/zantara-api.js"></script>
+    
+    <!-- Core System Modules -->
+    <script src="js/core/error-handler.js"></script>
+    <script src="js/core/cache-manager.js"></script>
+    <script src="js/core/request-deduplicator.js"></script>
+    <script src="js/core/websocket-manager.js"></script>
+    <script src="js/core/pwa-installer.js"></script>
+    
+    <!-- Advanced Features -->
+    <script src="js/sse-client.js"></script>
+    <script src="js/conversation-persistence.js"></script>
+    <script src="js/storage-manager.js"></script>
+    <script src="js/zantara-knowledge.js"></script>
+    <script src="js/zantara-thinking-indicator.js"></script>
+    
+    <!-- Dashboard & Analytics -->
+    <script src="js/real-zero-dashboard.js"></script>
+    <script src="js/real-team-tracking.js"></script>
+    <script src="js/zero-intelligent-analytics.js"></script>
+    
+    <!-- New Features -->
+    <script src="js/dynamic-tokens-manager.js"></script>
+    <script src="js/rag-warmup-service.js"></script>
+    
+    <!-- Auth Guard -->
+    <script>
+        if (!ZANTARA_API.isLoggedIn()) {
+            window.location.href = 'login-new.html';
+        }
+    </script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            background: #1e1e1e;
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* HEADER */
+        .header {
+            background: #252525;
+            border-bottom: 1px solid #3a3a3a;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            height: 32px;
+        }
+
+        .user-badge {
+            background: #6B46C1;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        /* MESSAGES AREA */
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            line-height: 1.6;
+        }
+
+        .user-message {
+            background: #6B46C1;
+            color: #fff;
+            align-self: flex-end;
+            margin-left: auto;
+        }
+
+        .ai-message {
+            background: #2a2a2a;
+            color: #fff;
+            align-self: flex-start;
+        }
+
+        .ai-message strong {
+            color: #10b981;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        /* INPUT AREA */
+        .input-area {
+            background: #252525;
+            border-top: 1px solid #3a3a3a;
+            padding: 16px 20px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        #chatInput {
+            flex: 1;
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 24px;
+            padding: 12px 20px;
+            color: #fff;
+            font-size: 15px;
+            resize: none;
+            max-height: 120px;
+        }
+
+        #chatInput:focus {
+            outline: none;
+            border-color: #6B46C1;
+        }
+
+        #sendBtn {
+            background: #6B46C1;
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 20px;
+            transition: all 0.3s;
+        }
+
+        #sendBtn:hover {
+            background: #5a38a3;
+            transform: scale(1.05);
+        }
+
+        #sendBtn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* WELCOME MESSAGE */
+        .welcome {
+            text-align: center;
+            padding: 40px 20px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .welcome h2 {
+            font-size: 24px;
+            margin-bottom: 12px;
+            color: #fff;
+        }
+
+        /* LOADING */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #6B46C1;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* THEME TOGGLE */
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 8px;
+            padding: 8px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 1000;
+        }
+
+        body.day-mode .theme-toggle {
+            background: #f5f5f5;
+            border-color: #ddd;
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+    <!-- Theme Toggle -->
+    <div class="theme-toggle" onclick="toggleTheme()">
+        <span id="themeIcon">🌙</span>
+        <span id="themeText">Night</span>
+    </div>
+
+    <div class="app">
+        <!-- Header -->
+        <div class="header">
+            <img src="assets/logoscon.png" class="logo" alt="ZANTARA">
+            <div class="user-badge" id="userBadge">Login</div>
+        </div>
+        
+        <!-- Messages -->
+        <div class="messages" id="messages">
+            <div class="welcome">
+                <h2>🪷 Benvenuto su Zantara</h2>
+                <p>L'anima intelligente di Bali Zero</p>
+            </div>
+        </div>
+        
+        <!-- Input Area -->
+        <div class="input-area">
+            <textarea id="chatInput" placeholder="Scrivi un messaggio..." rows="1"></textarea>
+            <button id="sendBtn">→</button>
+        </div>
+    </div>
+
+    <script>
+        // Initialize all system modules
+        console.log('🚀 Initializing ZANTARA System...');
+        
+        // Initialize core modules
+        if (typeof ErrorHandler !== 'undefined') {
+            window.errorHandler = new ErrorHandler();
+            console.log('✅ Error Handler initialized');
+        }
+        
+        if (typeof CacheManager !== 'undefined') {
+            window.cacheManager = new CacheManager();
+            console.log('✅ Cache Manager initialized');
+        }
+        
+        if (typeof RequestDeduplicator !== 'undefined') {
+            window.requestDeduplicator = new RequestDeduplicator();
+            console.log('✅ Request Deduplicator initialized');
+        }
+        
+        if (typeof WebSocketManager !== 'undefined') {
+            window.websocketManager = new WebSocketManager();
+            console.log('✅ WebSocket Manager initialized');
+        }
+        
+        if (typeof PWAInstaller !== 'undefined') {
+            window.pwaInstaller = new PWAInstaller();
+            console.log('✅ PWA Installer initialized');
+        }
+        
+        // Initialize advanced features
+        if (typeof SSEClient !== 'undefined') {
+            window.sseClient = new SSEClient();
+            console.log('✅ SSE Client initialized');
+        }
+        
+        if (typeof ConversationPersistence !== 'undefined') {
+            window.conversationPersistence = new ConversationPersistence();
+            console.log('✅ Conversation Persistence initialized');
+        }
+        
+        if (typeof StorageManager !== 'undefined') {
+            window.storageManager = new StorageManager();
+            console.log('✅ Storage Manager initialized');
+        }
+        
+        if (typeof ZantaraKnowledge !== 'undefined') {
+            window.zantaraKnowledge = new ZantaraKnowledge();
+            console.log('✅ ZANTARA Knowledge initialized');
+        }
+        
+        if (typeof ZantaraThinkingIndicator !== 'undefined') {
+            window.zantaraThinkingIndicator = new ZantaraThinkingIndicator();
+            console.log('✅ ZANTARA Thinking Indicator initialized');
+        }
+        
+        // Initialize dashboard & analytics
+        if (typeof RealZeroDashboard !== 'undefined') {
+            window.realZeroDashboard = new RealZeroDashboard();
+            console.log('✅ Real Zero Dashboard initialized');
+        }
+        
+        if (typeof RealTeamTracking !== 'undefined') {
+            window.realTeamTracking = new RealTeamTracking();
+            console.log('✅ Real Team Tracking initialized');
+        }
+        
+        if (typeof ZeroIntelligentAnalytics !== 'undefined') {
+            window.zeroIntelligentAnalytics = new ZeroIntelligentAnalytics();
+            console.log('✅ Zero Intelligent Analytics initialized');
+        }
+        
+        // Initialize new features
+        if (typeof DynamicTokensManager !== 'undefined') {
+            window.dynamicTokensManager = new DynamicTokensManager();
+            console.log('✅ Dynamic Tokens Manager initialized');
+        }
+        
+        if (typeof RAGWarmupService !== 'undefined') {
+            window.ragWarmupService = new RAGWarmupService();
+            console.log('✅ RAG Warmup Service initialized');
+            
+            // Auto-warmup in background
+            window.ragWarmupService.warmup();
+        }
+        
+        console.log('🎉 ZANTARA System fully initialized!');
+        
+        // Load user info
+        const user = ZANTARA_API.getUser();
+        if (user) {
+            document.getElementById('userBadge').textContent = user.name;
+            console.log('✅ User loaded:', user.name);
+        }
+        
+        // Theme toggle
+        function toggleTheme() {
+            document.body.classList.toggle('day-mode');
+            const icon = document.getElementById('themeIcon');
+            const text = document.getElementById('themeText');
+            
+            if (document.body.classList.contains('day-mode')) {
+                icon.textContent = '☀️';
+                text.textContent = 'Day';
+            } else {
+                icon.textContent = '🌙';
+                text.textContent = 'Night';
+            }
+        }
+        
+        // Send message function with full system integration
+        async function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            console.log('📤 Sending message:', message);
+            
+            const messagesDiv = document.getElementById('messages');
+            const sendBtn = document.getElementById('sendBtn');
+            
+            // Remove welcome if present
+            const welcome = messagesDiv.querySelector('.welcome');
+            if (welcome) welcome.remove();
+            
+            // Add user message
+            const userMsg = document.createElement('div');
+            userMsg.className = 'message user-message';
+            userMsg.textContent = message;
+            messagesDiv.appendChild(userMsg);
+            
+            // Clear input
+            input.value = '';
+            
+            // Scroll to bottom
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            // Disable send button
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<div class="loading"></div>';
+            
+            // Show thinking indicator
+            if (window.zantaraThinkingIndicator) {
+                window.zantaraThinkingIndicator.show();
+            }
+            
+            try {
+                // Check cache first
+                let result;
+                if (window.cacheManager) {
+                    const cached = await window.cacheManager.get(message);
+                    if (cached) {
+                        console.log('💾 Using cached response');
+                        result = cached;
+                    }
+                }
+                
+                // If not cached, make API call
+                if (!result) {
+                    // Check for duplicate requests
+                    if (window.requestDeduplicator) {
+                        const isDuplicate = await window.requestDeduplicator.checkDuplicate(message);
+                        if (isDuplicate) {
+                            console.log('🔄 Duplicate request detected, waiting...');
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                        }
+                    }
+                    
+                    // Get dynamic tokens configuration
+                    let apiConfig = {};
+                    if (window.dynamicTokensManager) {
+                        apiConfig = window.dynamicTokensManager.getConfig(message);
+                        console.log('🎯 Using dynamic tokens:', apiConfig.max_tokens);
+                    }
+                    
+                    // Call Zantara with SSE streaming if available
+                    if (window.sseClient) {
+                        console.log('🌊 Using SSE streaming...');
+                        result = await window.sseClient.streamChat(message, apiConfig);
+                    } else {
+                        console.log('📡 Using standard API call...');
+                        result = await ZANTARA_API.chat(message, apiConfig);
+                    }
+                    
+                    // Cache the result
+                    if (window.cacheManager && result.success) {
+                        await window.cacheManager.set(message, result);
+                    }
+                }
+                
+                if (result.success) {
+                    // Add AI response
+                    const aiMsg = document.createElement('div');
+                    aiMsg.className = 'message ai-message';
+                    aiMsg.innerHTML = `<strong>Zantara</strong>${result.response}`;
+                    messagesDiv.appendChild(aiMsg);
+                    
+                    console.log('✅ Response received from:', result.ai, result.model);
+                    
+                    // Persist conversation
+                    if (window.conversationPersistence) {
+                        await window.conversationPersistence.saveMessage('user', message);
+                        await window.conversationPersistence.saveMessage('ai', result.response);
+                    }
+                    
+                    // Update analytics
+                    if (window.zeroIntelligentAnalytics) {
+                        window.zeroIntelligentAnalytics.trackMessage(message, result.response);
+                    }
+                    
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                console.error('❌ Chat error:', error);
+                
+                // Handle error with error handler
+                if (window.errorHandler) {
+                    window.errorHandler.handleChatError(error);
+                }
+                
+                // Show error message
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'message ai-message';
+                errorMsg.innerHTML = `<strong>Errore</strong>Non riesco a rispondere. Riprova tra poco.`;
+                messagesDiv.appendChild(errorMsg);
+            } finally {
+                // Hide thinking indicator
+                if (window.zantaraThinkingIndicator) {
+                    window.zantaraThinkingIndicator.hide();
+                }
+                
+                // Re-enable send button
+                sendBtn.disabled = false;
+                sendBtn.textContent = '→';
+                
+                // Scroll to bottom
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }
+        }
+        
+        // Send button click
+        document.getElementById('sendBtn').addEventListener('click', sendMessage);
+        
+        // Enter key to send
+        document.getElementById('chatInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                console.log('⌨️ Enter key pressed');
+                sendMessage();
+            }
+        });
+        
+        // Auto-resize textarea
+        document.getElementById('chatInput').addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+    </script>
+</body>
+</html>
+
